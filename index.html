@@ -50,11 +50,11 @@ if ("serviceWorker" in navigator) {
 </section>
 
 <section id="apertura" class="view hidden">
-<div class="grid"><div class="card"><h2>☀️ Apertura</h2><div class="meta"><div><label>Responsable</label><input id="apResp"></div><div><label>Fecha</label><input id="apDate" type="date"></div></div><div class="progressline"><span id="apPct">0%</span><span id="apCount">0/0</span></div><div class="progress"><div class="bar" id="apBar"></div></div><div id="apTasks"></div><div class="actions"><button class="primary" onclick="finishChecklist('apertura')">✓ Registrar apertura</button><button onclick="resetChecklist('apertura')">Reiniciar</button></div></div><div class="card"><h3>⚠️ Pendientes anteriores</h3><div id="apPend"></div></div></div>
+<div class="grid"><div class="card"><h2>☀️ Apertura</h2><div class="meta"><div><label>Responsable</label><input id="apResp"></div><div><label>Fecha</label><input id="apDate" type="date" onchange="selectChecklistDate('apertura')"></div></div><div class="progressline"><span id="apPct">0%</span><span id="apCount">0/0</span></div><div class="progress"><div class="bar" id="apBar"></div></div><div id="apTasks"></div><div class="actions"><button class="primary" onclick="finishChecklist('apertura')">✓ Registrar apertura</button><button onclick="resetChecklist('apertura')">Reiniciar</button></div></div><div class="card"><h3>⚠️ Pendientes anteriores</h3><div id="apPend"></div></div></div>
 </section>
 
 <section id="cierre" class="view hidden">
-<div class="grid"><div class="card"><h2>🌙 Cierre</h2><div class="meta"><div><label>Responsable</label><input id="ciResp"></div><div><label>Fecha</label><input id="ciDate" type="date"></div></div><div class="progressline"><span id="ciPct">0%</span><span id="ciCount">0/0</span></div><div class="progress"><div class="bar" id="ciBar"></div></div><div id="ciTasks"></div><div class="actions"><button class="primary" onclick="finishChecklist('cierre')">✓ Registrar cierre</button><button onclick="resetChecklist('cierre')">Reiniciar</button></div></div><div class="card"><h3>📝 Pendiente para siguiente turno</h3><div class="actions"><button class="primary" onclick="openPendingModal()">+ Agregar pendiente</button></div><div id="ciPend"></div></div></div>
+<div class="grid"><div class="card"><h2>🌙 Cierre</h2><div class="meta"><div><label>Responsable</label><input id="ciResp"></div><div><label>Fecha</label><input id="ciDate" type="date" onchange="selectChecklistDate('cierre')"></div></div><div class="progressline"><span id="ciPct">0%</span><span id="ciCount">0/0</span></div><div class="progress"><div class="bar" id="ciBar"></div></div><div id="ciTasks"></div><div class="actions"><button class="primary" onclick="finishChecklist('cierre')">✓ Registrar cierre</button><button onclick="resetChecklist('cierre')">Reiniciar</button></div></div><div class="card"><h3>📝 Pendiente para siguiente turno</h3><div class="actions"><button class="primary" onclick="openPendingModal()">+ Agregar pendiente</button></div><div id="ciPend"></div></div></div>
 </section>
 
 <section id="incidencias" class="view hidden"><div class="grid"><div class="card"><h2>⚠️ Incidencias</h2>
@@ -115,7 +115,7 @@ cierre:[
 ["Control",[["Registrar mermas o productos dañados","Merma"],["Revisar pendientes para el siguiente turno","Pendientes"]]]
 ]};
 const STORE="panorama_cafe_v9_20260817";
-function blankDB(){return {tasks:makeInitialTasks(),sessions:[],incidents:[],pending:[],controls:{gas:[],alitas:[],papel:[]},active:{apertura:{},cierre:{}},details:{}}}
+function blankDB(){return {tasks:makeInitialTasks(),sessions:[],incidents:[],pending:[],controls:{gas:[],alitas:[],papel:[]},active:{apertura:{},cierre:{}},details:{},checklistDrafts:{apertura:{},cierre:{}}}}
 function load(){
  try{
    const saved=localStorage.getItem(STORE);
@@ -131,7 +131,8 @@ function load(){
        pending:Array.isArray(data.pending)?data.pending:[],
        controls:{...base.controls,...(data.controls||{})},
        active:{...base.active,...(data.active||{})},
-       details:data.details||{}
+       details:data.details||{},
+       checklistDrafts:{...base.checklistDrafts,...(data.checklistDrafts||{})}
      };
    }
  }catch(e){console.warn("No se pudo leer la base local",e)}
@@ -153,15 +154,69 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function showView(id){document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll("#mainNav button").forEach(b=>b.classList.toggle("primary",b.dataset.view===id))}
 document.querySelectorAll("#mainNav button").forEach(b=>b.onclick=()=>showView(b.dataset.view));
 
-function renderChecklist(mode){
- const box=document.getElementById(mode==="apertura"?"apTasks":"ciTasks"),active=db.active[mode];box.innerHTML="";
- const groups={};tasks(mode).forEach(t=>(groups[t.section]??=[]).push(t));
- for(const [section,list] of Object.entries(groups)){let s=document.createElement("div");s.className="section";s.innerHTML="<h3>"+esc(section)+"</h3>";
- list.forEach(t=>{let row=document.createElement("div");row.className="task "+(active[t.id]?"done":"");row.innerHTML=`<input type="checkbox" ${active[t.id]?"checked":""}><div style="flex:1"><div class="task-title">${esc(t.title)}</div><div class="muted">${esc(t.type)}</div></div>`;row.querySelector("input").onchange=e=>toggleTask(mode,t,e.target.checked);s.appendChild(row)});box.appendChild(s)}
- updateProgress(mode)
+
+function checklistDate(mode){
+ const id=mode==="apertura"?"apDate":"ciDate";
+ return document.getElementById(id).value||today();
 }
-function updateProgress(mode){let n=tasks(mode).length,d=tasks(mode).filter(t=>db.active[mode][t.id]).length,p=n?Math.round(d/n*100):0,pre=mode==="apertura"?"ap":"ci";document.getElementById(pre+"Bar").style.width=p+"%";document.getElementById(pre+"Pct").textContent=p+"% completado";document.getElementById(pre+"Count").textContent=d+"/"+n}
-function toggleTask(mode,t,checked){if(!checked){db.active[mode][t.id]=false;save();return}if(["Cantidad / inventario","Merma","Pendientes","Validación","Verificación","Condicional"].includes(t.type)){openTaskDetail(mode,t);return}db.active[mode][t.id]=true;save()}
+function ensureDrafts(){
+ db.checklistDrafts=db.checklistDrafts||{apertura:{},cierre:{}};
+ db.checklistDrafts.apertura=db.checklistDrafts.apertura||{};
+ db.checklistDrafts.cierre=db.checklistDrafts.cierre||{};
+}
+function loadChecklistState(mode){
+ ensureDrafts();
+ const date=checklistDate(mode);
+ const existing=db.sessions.find(x=>x.mode===mode&&x.date===date);
+ const draft=db.checklistDrafts[mode][date];
+ if(existing){
+   db.active[mode]={...(existing.checks||{})};
+   db.details={...(existing.details||{})};
+ }else if(draft){
+   db.active[mode]={...(draft.checks||{})};
+   db.details={...(draft.details||{})};
+ }else{
+   db.active[mode]={};
+   db.details={};
+ }
+ renderChecklist(mode);
+}
+function saveChecklistDraft(mode){
+ ensureDrafts();
+ const date=checklistDate(mode);
+ db.checklistDrafts[mode][date]={checks:{...(db.active[mode]||{})},details:{...(db.details||{})}};
+}
+function renderChecklist(mode){
+ const box=document.getElementById(mode==="apertura"?"apTasks":"ciTasks");
+ const active=db.active[mode];box.innerHTML="";
+ const list=tasks(mode),by={};
+ list.forEach(t=>(by[t.section]??=[]).push(t));
+ Object.entries(by).forEach(([section,arr])=>{
+   let s=document.createElement("div");s.className="section";s.innerHTML=`<h3>${esc(section)}</h3>`;
+   arr.forEach(t=>{
+     let row=document.createElement("div");row.className="task "+(active[t.id]?"done":"");
+     row.innerHTML=`<input type="checkbox" ${active[t.id]?"checked":""}><div style="flex:1"><div class="task-title">${esc(t.title)}</div><div class="muted">${esc(t.type)}</div></div>`;
+     row.querySelector("input").onchange=e=>toggleTask(mode,t,e.target.checked);
+     s.appendChild(row);
+   });
+   box.appendChild(s);
+ });
+ updateProgress(mode);
+}
+function updateProgress(mode){
+ let n=tasks(mode).length,d=tasks(mode).filter(t=>db.active[mode][t.id]).length,p=n?Math.round(d/n*100):0,pre=mode==="apertura"?"ap":"ci";
+ document.getElementById(pre+"Bar").style.width=p+"%";
+ document.getElementById(pre+"Pct").textContent=p+"% completado";
+ document.getElementById(pre+"Count").textContent=d+"/"+n;
+}
+function toggleTask(mode,t,checked){
+ if(!checked){db.active[mode][t.id]=false;saveChecklistDraft(mode);save();return}
+ if(["Cantidad / inventario","Merma","Pendientes","Validación","Verificación","Condicional"].includes(t.type)){openTaskDetail(mode,t);return}
+ db.active[mode][t.id]=true;saveChecklistDraft(mode);save();
+}
+function selectChecklistDate(mode){
+ loadChecklistState(mode);
+}
 function openTaskDetail(mode,t){
  let body=`<div class="modalhead"><div><h2>${esc(t.title)}</h2><div class="muted">${esc(t.type)}</div></div><button class="close" onclick="closeModal()">✕</button></div>`;
  if(t.type==="Cantidad / inventario")body+=`<label>Cantidad verificada</label><input id="detailQty" type="number" min="0" step="0.01"><label>Observación</label><textarea id="detailObs"></textarea>`;
@@ -181,8 +236,34 @@ function completeTask(mode,id,titleEncoded,type){
  if(["Validación","Verificación","Condicional"].includes(type)){d.result=document.getElementById("detailResult").value;d.observacion=document.getElementById("detailObs").value;if(["Insuficiente","No realizado"].includes(d.result))db.incidents.unshift({id:crypto.randomUUID(),date:today(),resp:"Sistema",type:"Operación",priority:"Media",status:"Abierta",desc:"Incidencia generada desde: "+title,action:d.observacion})}
  db.active[mode][id]=true;db.details[id]=d;closeModal();save()
 }
-function finishChecklist(mode){const list=tasks(mode),done=list.filter(t=>db.active[mode][t.id]).length,resp=document.getElementById(mode==="apertura"?"apResp":"ciResp").value||"Sin responsable",date=document.getElementById(mode==="apertura"?"apDate":"ciDate").value||today();db.sessions.unshift({id:crypto.randomUUID(),mode,resp,date,done,total:list.length,checks:{...db.active[mode]},details:{...db.details},time:new Date().toLocaleString("es-MX")});alert(done===list.length?"Checklist completo registrado.":"Checklist registrado con pendientes.");save()}
-function resetChecklist(mode){db.active[mode]={};db.details={};save()}
+function finishChecklist(mode){
+ const list=tasks(mode),done=list.filter(t=>db.active[mode][t.id]).length;
+ const resp=document.getElementById(mode==="apertura"?"apResp":"ciResp").value||"Sin responsable";
+ const date=checklistDate(mode);
+ const record={id:crypto.randomUUID(),mode,resp,date,done,total:list.length,checks:{...db.active[mode]},details:{...db.details},time:new Date().toLocaleString("es-MX")};
+ const idx=db.sessions.findIndex(x=>x.mode===mode&&x.date===date);
+ if(idx>=0){
+   record.id=db.sessions[idx].id;
+   db.sessions[idx]=record;
+   alert("El checklist de esa fecha ya existía. Se actualizó el registro en lugar de crear un segundo registro.");
+ }else{
+   db.sessions.unshift(record);
+   alert(done===list.length?"Checklist completo registrado.":"Checklist registrado con pendientes.");
+ }
+ saveChecklistDraft(mode);
+ save();
+}
+function resetChecklist(mode){
+ const date=checklistDate(mode);
+ const existing=db.sessions.find(x=>x.mode===mode&&x.date===date);
+ if(existing){
+   if(!confirm(`Ya existe un registro de ${mode==="apertura"?"apertura":"cierre"} para el ${date}. ¿Quieres eliminar ese registro y reiniciar el checklist de ese día?`))return;
+   db.sessions=db.sessions.filter(x=>!(x.mode===mode&&x.date===date));
+ }
+ ensureDrafts();
+ delete db.checklistDrafts[mode][date];
+ db.active[mode]={};db.details={};save();
+}
 function renderPending(){const a=db.pending.filter(p=>p.status==="Pendiente");document.getElementById("apPend").innerHTML=a.length?a.map(p=>`<div class="item"><b>${esc(p.text)}</b><div class="muted">${p.date} · ${esc(p.resp)}</div><div class="actions"><button class="ok" onclick="resolvePending('${p.id}')">✓ Resolver</button><button onclick="editPending('${p.id}')">✏️ Editar</button><button class="danger" onclick="deletePending('${p.id}')">🗑️ Eliminar</button><button onclick="openIncidentFromPending('${p.id}')">⚠ Incidencia</button></div></div>`).join(""):"<div class='empty'>No hay pendientes.</div>";document.getElementById("ciPend").innerHTML=a.length?a.map(p=>`<div class="item">⚠️ ${esc(p.text)} · ${p.date}</div>`).join(""):"<div class='empty'>Sin pendientes activos.</div>"}
 function openPendingModal(){openModal(`<div class="modalhead"><h2>Nuevo pendiente</h2><button class="close" onclick="closeModal()">✕</button></div><label>Descripción</label><textarea id="newPending" rows="4"></textarea><div class="actions"><button class="primary" onclick="savePending()">Guardar</button></div>`)}
 function savePending(){let text=document.getElementById("newPending").value.trim();if(!text)return;db.pending.unshift({id:crypto.randomUUID(),text,date:today(),resp:document.getElementById("ciResp").value||"Sin responsable",status:"Pendiente"});closeModal();save()}
@@ -312,7 +393,7 @@ function renderPapel(){
  document.getElementById("papelHistory").innerHTML=a.length?a.slice(0,20).map(x=>`<div class="item"><b>${esc(x.fecha)}</b> · <b>${x.cantidad} rollos</b> · <b>Baño de ${esc((x.banio||"").toLowerCase())}</b><br><span class="muted">${esc(x.responsable||"Sin responsable")}${x.observacion?" · "+esc(x.observacion):""}</span><div class="actions"><button onclick="editPapel('${x.id}')">✏️ Editar</button><button class="danger" onclick="deletePapel('${x.id}')">🗑️ Eliminar</button></div></div>`).join(""):"<div class='empty'>Sin cambios registrados.</div>";
 }
 function renderAll(){renderChecklist("apertura");renderChecklist("cierre");renderPending();renderIncidents();renderDashboard();renderGas();renderAlitas();renderPapel();renderConfig()}
-document.getElementById("apDate").value=today();document.getElementById("ciDate").value=today();document.getElementById("incDate").value=today();renderAll();setInterval(()=>{if(!document.getElementById("gas").classList.contains("hidden"))renderGas()},60000);
+document.getElementById("apDate").value=today();document.getElementById("ciDate").value=today();document.getElementById("incDate").value=today();loadChecklistState("apertura");loadChecklistState("cierre");renderAll();setInterval(()=>{if(!document.getElementById("gas").classList.contains("hidden"))renderGas()},60000);
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 </script>
