@@ -4,11 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#17352b">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Panorama Café">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Panorama Café</title>
 <style>
 :root{--bg:#f3f0e8;--card:#fff;--ink:#24322d;--muted:#718078;--brand:#17352b;--brand2:#315b49;--line:#e2ded5;--ok:#2e7d57;--bad:#b94d49;--warn:#b57920}
@@ -22,15 +18,11 @@
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.modalbox{background:white;width:min(650px,100%);max-height:90vh;overflow:auto;border-radius:20px;padding:20px}.modalhead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.close{background:transparent;font-size:18px}
 @media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.meta{grid-template-columns:1fr}}
 </style>
-
 <script>
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-  });
+  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
 }
-</script>
-</head>
+</script></head>
 <body>
 <div class="app">
 <header class="header"><h1>☕ Panorama Café</h1><div>Prototipo V7 · sistema operativo</div></header>
@@ -122,10 +114,39 @@ cierre:[
 ["Siguiente servicio",[["Verificar cervezas frías disponibles para el siguiente servicio","Cantidad / inventario"],["Guardar correctamente los insumos","Confirmación"],["Verificar que no queden productos sensibles fuera de almacenamiento"]]],
 ["Control",[["Registrar mermas o productos dañados","Merma"],["Revisar pendientes para el siguiente turno","Pendientes"]]]
 ]};
-const STORE="panorama_cafe_v8_clean_20260817";
-function load(){return {tasks:makeInitialTasks(),sessions:[],incidents:[],pending:[],controls:{gas:[],alitas:[],papel:[]},active:{apertura:{},cierre:{}},details:{}}}
+const STORE="panorama_cafe_v9_20260817";
+function blankDB(){return {tasks:makeInitialTasks(),sessions:[],incidents:[],pending:[],controls:{gas:[],alitas:[],papel:[]},active:{apertura:{},cierre:{}},details:{}}}
+function load(){
+ try{
+   const saved=localStorage.getItem(STORE);
+   if(saved){
+     const data=JSON.parse(saved);
+     const base=blankDB();
+     return {
+       ...base,
+       ...data,
+       tasks:Array.isArray(data.tasks)&&data.tasks.length?data.tasks:base.tasks,
+       sessions:Array.isArray(data.sessions)?data.sessions:[],
+       incidents:Array.isArray(data.incidents)?data.incidents:[],
+       pending:Array.isArray(data.pending)?data.pending:[],
+       controls:{...base.controls,...(data.controls||{})},
+       active:{...base.active,...(data.active||{})},
+       details:data.details||{}
+     };
+   }
+ }catch(e){console.warn("No se pudo leer la base local",e)}
+ return blankDB();
+}
 function makeInitialTasks(){let a=[];for(const mode of ["apertura","cierre"])for(const [section,items] of INITIAL[mode])for(const [title,type="Confirmación"] of items)a.push({id:crypto.randomUUID(),mode,section,title,type,active:true,archived:false,base:true});return a}
-let db=load();db.controls=db.controls||{gas:[],alitas:[],papel:[]};db.tasks=db.tasks||makeInitialTasks();db.active=db.active||{apertura:{},cierre:{}};db.incidents=db.incidents||[];db.pending=db.pending||[];db.sessions=db.sessions||[];function save(){localStorage.setItem(STORE,JSON.stringify(db));renderAll()}
+let db=load();db.controls=db.controls||{gas:[],alitas:[],papel:[]};db.tasks=db.tasks||makeInitialTasks();db.active=db.active||{apertura:{},cierre:{}};db.incidents=db.incidents||[];db.pending=db.pending||[];db.sessions=db.sessions||[];function save(){
+ try{
+   localStorage.setItem(STORE,JSON.stringify(db));
+   renderAll();
+ }catch(e){
+   alert("No se pudo guardar la información en el dispositivo. Revisa el almacenamiento del navegador.");
+   console.error(e);
+ }
+}
 function today(){return new Date().toISOString().slice(0,10)}
 function tasks(mode){return db.tasks.filter(t=>t.mode===mode&&t.active&&!t.archived)}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
