@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#17352b">
+<link rel="manifest" href="manifest.json">
+<title>Panorama Café · V7</title>
+<style>
+:root{--bg:#f3f0e8;--card:#fff;--ink:#24322d;--muted:#718078;--brand:#17352b;--brand2:#315b49;--line:#e2ded5;--ok:#2e7d57;--bad:#b94d49;--warn:#b57920}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,sans-serif}.app{max-width:1100px;margin:auto;padding:14px}
+.header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:20px;border-radius:22px}.header h1{margin:0}.muted{color:var(--muted);font-size:12px}
+.nav{display:flex;gap:8px;overflow:auto;margin:14px 0}.nav button{white-space:nowrap}button{border:0;border-radius:11px;padding:10px 13px;font-weight:800;cursor:pointer;background:#e9e6de;color:var(--ink)}button.primary{background:var(--brand);color:white}button.danger{background:#f6e1df;color:var(--bad)}button.ok{background:#e2f0e8;color:#236b4a}
+.view.hidden,.modal.hidden{display:none}.grid{display:grid;grid-template-columns:1.3fr .7fr;gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:17px;box-shadow:0 5px 18px #00000008}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#f7f5ef;padding:13px;border-radius:13px}.num{font-size:25px;font-weight:900}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:block;font-size:12px;font-weight:800;color:var(--muted);margin:8px 0 5px}input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:white;font:inherit;color:var(--ink)}
+.progress{height:10px;background:#e9e6de;border-radius:20px;overflow:hidden}.bar{height:100%;background:var(--ok);width:0}.progressline{display:flex;justify-content:space-between;margin:12px 0 7px;font-size:13px;font-weight:800}
+.section{margin-top:20px}.section h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--brand2)}.task{display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:12px 3px}.task:last-child{border:0}.task input[type=checkbox]{width:21px;height:21px;accent-color:var(--ok)}.task.done .task-title{text-decoration:line-through;color:#909a93}.task-title{font-weight:800}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.item{padding:11px 0;border-bottom:1px solid var(--line)}.item:last-child{border:0}.empty{text-align:center;padding:18px;color:var(--muted)}.tag{display:inline-block;padding:4px 8px;border-radius:99px;background:#ece9e1;font-size:11px;font-weight:800}.notice{padding:11px;border-radius:11px;background:#f5f1e8;font-size:13px;margin-top:10px}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.modalbox{background:white;width:min(650px,100%);max-height:90vh;overflow:auto;border-radius:20px;padding:20px}.modalhead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.close{background:transparent;font-size:18px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.meta{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="header"><h1>☕ Panorama Café</h1><div>Prototipo V7 · sistema operativo</div></header>
+
+<nav class="nav" id="mainNav">
+<button class="primary" data-view="dashboard">📊 Dashboard</button>
+<button data-view="apertura">☀️ Apertura</button>
+<button data-view="cierre">🌙 Cierre</button>
+<button data-view="incidencias">⚠️ Incidencias</button>
+<button data-view="gas">🔥 Gas</button>
+<button data-view="alitas">🍗 Alitas</button>
+<button data-view="papel">🧻 Papel de baño</button>
+<button data-view="config">⚙️ Configuración</button>
+</nav>
+
+<section id="dashboard" class="view">
+<div class="card"><h2>Dashboard</h2><div class="stats">
+<div class="stat"><div class="num" id="dashPct">0%</div><div class="muted">Cumplimiento</div></div>
+<div class="stat"><div class="num" id="dashDone">0</div><div class="muted">Realizadas</div></div>
+<div class="stat"><div class="num" id="dashPending">0</div><div class="muted">Pendientes</div></div>
+<div class="stat"><div class="num" id="dashInc">0</div><div class="muted">Incidencias abiertas</div></div>
+</div></div>
+<div class="grid" style="margin-top:14px"><div class="card"><h3>Actividad reciente</h3><div id="history"></div></div><div class="card"><h3>Pendientes activos</h3><div id="dashPendingList"></div></div></div>
+<div class="card" style="margin-top:14px"><h3>Últimas incidencias</h3><div id="dashIncList"></div></div>
+</section>
+
+<section id="apertura" class="view hidden">
+<div class="grid"><div class="card"><h2>☀️ Apertura</h2><div class="meta"><div><label>Responsable</label><input id="apResp"></div><div><label>Fecha</label><input id="apDate" type="date"></div></div><div class="progressline"><span id="apPct">0%</span><span id="apCount">0/0</span></div><div class="progress"><div class="bar" id="apBar"></div></div><div id="apTasks"></div><div class="actions"><button class="primary" onclick="finishChecklist('apertura')">✓ Registrar apertura</button><button onclick="resetChecklist('apertura')">Reiniciar</button></div></div><div class="card"><h3>⚠️ Pendientes anteriores</h3><div id="apPend"></div></div></div>
+</section>
+
+<section id="cierre" class="view hidden">
+<div class="grid"><div class="card"><h2>🌙 Cierre</h2><div class="meta"><div><label>Responsable</label><input id="ciResp"></div><div><label>Fecha</label><input id="ciDate" type="date"></div></div><div class="progressline"><span id="ciPct">0%</span><span id="ciCount">0/0</span></div><div class="progress"><div class="bar" id="ciBar"></div></div><div id="ciTasks"></div><div class="actions"><button class="primary" onclick="finishChecklist('cierre')">✓ Registrar cierre</button><button onclick="resetChecklist('cierre')">Reiniciar</button></div></div><div class="card"><h3>📝 Pendiente para siguiente turno</h3><div class="actions"><button class="primary" onclick="openPendingModal()">+ Agregar pendiente</button></div><div id="ciPend"></div></div></div>
+</section>
+
+<section id="incidencias" class="view hidden"><div class="grid"><div class="card"><h2>⚠️ Incidencias</h2>
+<label>Fecha</label><input id="incDate" type="date"><div class="meta"><div><label>Responsable</label><input id="incResp"></div><div><label>Tipo</label><select id="incType"><option>Operación</option><option>Inventario</option><option>Equipo</option><option>Caja / ventas</option><option>Limpieza</option><option>Personal</option><option>Seguridad</option><option>Otro</option></select></div></div>
+<div class="meta"><div><label>Prioridad</label><select id="incPriority"><option>Baja</option><option>Media</option><option>Alta</option><option>Crítica</option></select></div><div><label>Estado</label><select id="incStatus"><option>Abierta</option><option>En seguimiento</option><option>Resuelta</option></select></div></div>
+<label>Descripción</label><textarea id="incDesc" rows="4"></textarea><label>Acción tomada</label><textarea id="incAction" rows="3"></textarea><div class="actions"><button class="primary" onclick="saveIncident()">Guardar incidencia</button></div>
+</div><div class="card"><h3>Historial</h3><div id="incHistory"></div></div></div></section>
+
+<section id="gas" class="view hidden">
+<div class="grid">
+<div class="card">
+<h2>🔥 Control de tanque de gas</h2>
+<div class="muted">Un tanque activo tiene un contador. Cuando se termina, ciérralo y queda registrado en el historial.</div>
+<div id="gasActive" style="margin-top:15px"></div>
+<div class="actions"><button class="primary" onclick="startGasTank()">+ Colocar tanque nuevo</button></div>
+</div>
+<div class="card"><h3>📊 Resumen</h3><div id="gasSummary"></div></div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Historial</h3><div class="muted">Se muestra en forma compacta para evitar que la pantalla crezca innecesariamente.</div><div id="gasHistory"></div></div>
+</section>
+
+<section id="alitas" class="view hidden">
+<div class="grid">
+<div class="card"><h2>🍗 Llegada de alitas</h2><div class="muted">Bitácora independiente. La cantidad siempre se registra en kg.</div><div class="actions"><button class="primary" onclick="openAlitasForm()">+ Registrar llegada</button></div></div>
+<div class="card"><h3>📊 Resumen</h3><div id="alitasSummary"></div></div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Historial de llegadas</h3><div id="alitasHistory"></div></div>
+</section>
+
+<section id="papel" class="view hidden">
+<div class="grid">
+<div class="card"><h2>🧻 Cambio de papel de baño</h2><div class="muted">Control exclusivo del baño de clientes.</div><div class="actions"><button class="primary" onclick="openPapelForm()">+ Registrar cambio</button></div></div>
+<div class="card"><h3>📊 Resumen</h3><div id="papelSummary"></div></div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Historial de cambios</h3><div id="papelHistory"></div></div>
+</section>
+
+<section id="config" class="view hidden"><div class="grid"><div class="card"><h2>⚙️ Configuración</h2><div class="muted">Aquí puedes editar directamente las acciones que aparecerán en los checklists. En esta versión priorizamos funcionalidad sobre conservación de versiones históricas.</div><div class="actions"><button class="primary" onclick="openTaskModal()">+ Agregar acción</button><button onclick="showArchived()">📦 Archivadas</button><button onclick="exportExcelReport()">📊 Reporte Excel</button><button class="danger" onclick="resetCleanApp()">🧹 Restablecer aplicación</button></div><div id="configList"></div></div><div class="card"><h3>Reglas</h3><div class="notice">Desactivar = no aparece en nuevos checklists. Eliminar = archivar. Los registros históricos se conservan mientras no restablezcas la aplicación.<br><br><b>Reporte Excel:</b> genera un libro con registros por día, checklists, incidencias, pendientes y controles especiales.</div><div class="actions"><button class="danger" onclick="factoryResetTasks()">Restaurar lista inicial</button></div></div></div></section>
+
+<div id="modal" class="modal hidden"><div class="modalbox" id="modalBox"></div></div>
+<footer class="muted" style="text-align:center;padding:18px">Prototipo local · datos en el navegador</footer>
+</div>
+
+<script>
+const INITIAL={
+apertura:[
+["Preparación de alimentos",[
+["Sacar las alitas a descongelar","Confirmación"],["Filtrar el aceite de alitas, papas y tenders","Confirmación"],["Tener mezcla para waffles lista","Confirmación"],["Tener quesillo deshebrado","Confirmación"],["Verificar suficiente tasajo y chorizo","Verificación"],["Tener leche congelada y porcionada","Confirmación"],["Tener papas a la francesa embolsadas","Confirmación"],["Tener papas hojuela embolsadas","Confirmación"],["Tener tostadas fritas","Confirmación"]]],
+["Bebidas",[["Verificar suficientes cervezas enfriando o frías","Cantidad / inventario"]]],
+["Terraza y salón",[["Limpiar y barrer terraza","Confirmación"],["Colocar sillas","Confirmación"],["Limpiar mesas","Confirmación"],["Realizar limpieza general","Confirmación"]]],
+["Baños",[["Verificar suficiente papel en los baños","Verificación"],["Verificar suficiente jabón para manos","Verificación"]]],
+["Operación",[["Verificar Loyverse / caja listo para operar","Validación"],["Verificar vasos, popotes, servilletas y utensilios","Verificación"],["Verificar equipos necesarios para iniciar","Validación"],["Revisar pendientes o incidencias del cierre anterior","Pendientes"]]]
+],
+cierre:[
+["Limpieza",[["Si no hubo gente, lavar trastes","Condicional"]]],
+["Seguridad y servicios",[["Desconectar electrónicos","Confirmación"],["Verificar cierre del tanque de gas / estufa","Confirmación"],["Apagar luces","Confirmación"]]],
+["Siguiente servicio",[["Verificar cervezas frías disponibles para el siguiente servicio","Cantidad / inventario"],["Guardar correctamente los insumos","Confirmación"],["Verificar que no queden productos sensibles fuera de almacenamiento"]]],
+["Control",[["Registrar mermas o productos dañados","Merma"],["Revisar pendientes para el siguiente turno","Pendientes"]]]
+]};
+const STORE="panorama_cafe_v8_clean_20260817";
+function load(){return {tasks:makeInitialTasks(),sessions:[],incidents:[],pending:[],controls:{gas:[],alitas:[],papel:[]},active:{apertura:{},cierre:{}},details:{}}}
+function makeInitialTasks(){let a=[];for(const mode of ["apertura","cierre"])for(const [section,items] of INITIAL[mode])for(const [title,type="Confirmación"] of items)a.push({id:crypto.randomUUID(),mode,section,title,type,active:true,archived:false,base:true});return a}
+let db=load();db.controls=db.controls||{gas:[],alitas:[],papel:[]};db.tasks=db.tasks||makeInitialTasks();db.active=db.active||{apertura:{},cierre:{}};db.incidents=db.incidents||[];db.pending=db.pending||[];db.sessions=db.sessions||[];function save(){localStorage.setItem(STORE,JSON.stringify(db));renderAll()}
+function today(){return new Date().toISOString().slice(0,10)}
+function tasks(mode){return db.tasks.filter(t=>t.mode===mode&&t.active&&!t.archived)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function showView(id){document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll("#mainNav button").forEach(b=>b.classList.toggle("primary",b.dataset.view===id))}
+document.querySelectorAll("#mainNav button").forEach(b=>b.onclick=()=>showView(b.dataset.view));
+
+function renderChecklist(mode){
+ const box=document.getElementById(mode==="apertura"?"apTasks":"ciTasks"),active=db.active[mode];box.innerHTML="";
+ const groups={};tasks(mode).forEach(t=>(groups[t.section]??=[]).push(t));
+ for(const [section,list] of Object.entries(groups)){let s=document.createElement("div");s.className="section";s.innerHTML="<h3>"+esc(section)+"</h3>";
+ list.forEach(t=>{let row=document.createElement("div");row.className="task "+(active[t.id]?"done":"");row.innerHTML=`<input type="checkbox" ${active[t.id]?"checked":""}><div style="flex:1"><div class="task-title">${esc(t.title)}</div><div class="muted">${esc(t.type)}</div></div>`;row.querySelector("input").onchange=e=>toggleTask(mode,t,e.target.checked);s.appendChild(row)});box.appendChild(s)}
+ updateProgress(mode)
+}
+function updateProgress(mode){let n=tasks(mode).length,d=tasks(mode).filter(t=>db.active[mode][t.id]).length,p=n?Math.round(d/n*100):0,pre=mode==="apertura"?"ap":"ci";document.getElementById(pre+"Bar").style.width=p+"%";document.getElementById(pre+"Pct").textContent=p+"% completado";document.getElementById(pre+"Count").textContent=d+"/"+n}
+function toggleTask(mode,t,checked){if(!checked){db.active[mode][t.id]=false;save();return}if(["Cantidad / inventario","Merma","Pendientes","Validación","Verificación","Condicional"].includes(t.type)){openTaskDetail(mode,t);return}db.active[mode][t.id]=true;save()}
+function openTaskDetail(mode,t){
+ let body=`<div class="modalhead"><div><h2>${esc(t.title)}</h2><div class="muted">${esc(t.type)}</div></div><button class="close" onclick="closeModal()">✕</button></div>`;
+ if(t.type==="Cantidad / inventario")body+=`<label>Cantidad verificada</label><input id="detailQty" type="number" min="0" step="0.01"><label>Observación</label><textarea id="detailObs"></textarea>`;
+ else if(t.type==="Merma")body+=`<label>¿Hubo merma?</label><select id="detailYes" onchange="renderMermaFields()"><option>No</option><option>Sí</option></select><div id="mermaFields"></div>`;
+ else if(t.type==="Pendientes")body+=`<label>¿Hay pendiente?</label><select id="detailYes" onchange="renderPendingFields()"><option>No</option><option>Sí</option></select><div id="pendingFields"></div>`;
+ else body+=`<label>Resultado</label><select id="detailResult"><option>Correcto</option><option>Insuficiente</option><option>No realizado</option><option>No aplica</option></select><label>Observación</label><textarea id="detailObs"></textarea>`;
+ body+=`<div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="completeTask('${mode}','${t.id}','${encodeURIComponent(t.title)}','${t.type}')">Guardar y completar</button></div>`;
+ openModal(body)
+}
+function renderMermaFields(){document.getElementById("mermaFields").innerHTML=document.getElementById("detailYes").value==="Sí"?`<label>Producto</label><input id="mProduct"><div class="meta"><div><label>Cantidad</label><input id="mQty" type="number" min="0" step="0.01"></div><div><label>Unidad</label><select id="mUnit"><option>kg</option><option>piezas</option><option>porciones</option></select></div></div><label>Motivo</label><select id="mReason"><option>Daño</option><option>Caducidad</option><option>Preparación</option><option>Accidente</option><option>Otro</option></select>`:""}
+function renderPendingFields(){document.getElementById("pendingFields").innerHTML=document.getElementById("detailYes").value==="Sí"?`<label>Pendiente</label><textarea id="pText" rows="3"></textarea>`:""}
+function completeTask(mode,id,titleEncoded,type){
+ let d={};const title=decodeURIComponent(titleEncoded);
+ if(type==="Cantidad / inventario"){d.cantidad=document.getElementById("detailQty").value;d.observacion=document.getElementById("detailObs").value;if(!d.cantidad){alert("Indica la cantidad.");return}}
+ if(type==="Merma"&&document.getElementById("detailYes").value==="Sí"){d.producto=document.getElementById("mProduct").value;d.cantidad=document.getElementById("mQty").value;d.unidad=document.getElementById("mUnit").value;d.motivo=document.getElementById("mReason").value}
+ if(type==="Pendientes"&&document.getElementById("detailYes").value==="Sí"){const text=document.getElementById("pText").value.trim();if(!text){alert("Describe el pendiente.");return}db.pending.unshift({id:crypto.randomUUID(),text,date:today(),resp:mode==="cierre"?document.getElementById("ciResp").value:"Sin responsable",status:"Pendiente"})}
+ if(["Validación","Verificación","Condicional"].includes(type)){d.result=document.getElementById("detailResult").value;d.observacion=document.getElementById("detailObs").value;if(["Insuficiente","No realizado"].includes(d.result))db.incidents.unshift({id:crypto.randomUUID(),date:today(),resp:"Sistema",type:"Operación",priority:"Media",status:"Abierta",desc:"Incidencia generada desde: "+title,action:d.observacion})}
+ db.active[mode][id]=true;db.details[id]=d;closeModal();save()
+}
+function finishChecklist(mode){const list=tasks(mode),done=list.filter(t=>db.active[mode][t.id]).length,resp=document.getElementById(mode==="apertura"?"apResp":"ciResp").value||"Sin responsable",date=document.getElementById(mode==="apertura"?"apDate":"ciDate").value||today();db.sessions.unshift({id:crypto.randomUUID(),mode,resp,date,done,total:list.length,checks:{...db.active[mode]},details:{...db.details},time:new Date().toLocaleString("es-MX")});alert(done===list.length?"Checklist completo registrado.":"Checklist registrado con pendientes.");save()}
+function resetChecklist(mode){db.active[mode]={};db.details={};save()}
+function renderPending(){const a=db.pending.filter(p=>p.status==="Pendiente");document.getElementById("apPend").innerHTML=a.length?a.map(p=>`<div class="item"><b>${esc(p.text)}</b><div class="muted">${p.date} · ${esc(p.resp)}</div><div class="actions"><button class="ok" onclick="resolvePending('${p.id}')">✓ Resolver</button><button onclick="editPending('${p.id}')">✏️ Editar</button><button class="danger" onclick="deletePending('${p.id}')">🗑️ Eliminar</button><button onclick="openIncidentFromPending('${p.id}')">⚠ Incidencia</button></div></div>`).join(""):"<div class='empty'>No hay pendientes.</div>";document.getElementById("ciPend").innerHTML=a.length?a.map(p=>`<div class="item">⚠️ ${esc(p.text)} · ${p.date}</div>`).join(""):"<div class='empty'>Sin pendientes activos.</div>"}
+function openPendingModal(){openModal(`<div class="modalhead"><h2>Nuevo pendiente</h2><button class="close" onclick="closeModal()">✕</button></div><label>Descripción</label><textarea id="newPending" rows="4"></textarea><div class="actions"><button class="primary" onclick="savePending()">Guardar</button></div>`)}
+function savePending(){let text=document.getElementById("newPending").value.trim();if(!text)return;db.pending.unshift({id:crypto.randomUUID(),text,date:today(),resp:document.getElementById("ciResp").value||"Sin responsable",status:"Pendiente"});closeModal();save()}
+function resolvePending(id){let p=db.pending.find(x=>x.id===id);if(p)p.status="Resuelto";save()}
+function editPending(id){let p=db.pending.find(x=>x.id===id);if(!p)return;openModal(`<div class="modalhead"><h2>Editar pendiente</h2><button class="close" onclick="closeModal()">✕</button></div><label>Descripción</label><textarea id="editPendingText" rows="4">${esc(p.text)}</textarea><div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="savePendingEdit('${id}')">Guardar</button></div>`)}
+function savePendingEdit(id){let p=db.pending.find(x=>x.id===id),text=document.getElementById("editPendingText").value.trim();if(!text)return;if(p)p.text=text;closeModal();save()}
+function deletePending(id){if(!confirm("¿Eliminar este pendiente?"))return;db.pending=db.pending.filter(x=>x.id!==id);save()}
+function openIncidentFromPending(id){let p=db.pending.find(x=>x.id===id);showView("incidencias");document.getElementById("incDesc").value=p?.text||""}
+function saveIncident(){let desc=document.getElementById("incDesc").value.trim();if(!desc){alert("Escribe una descripción.");return}db.incidents.unshift({id:crypto.randomUUID(),date:document.getElementById("incDate").value||today(),resp:document.getElementById("incResp").value||"Sin responsable",type:document.getElementById("incType").value,priority:document.getElementById("incPriority").value,status:document.getElementById("incStatus").value,desc,action:document.getElementById("incAction").value});document.getElementById("incDesc").value="";document.getElementById("incAction").value="";save()}
+function renderIncidents(){document.getElementById("incHistory").innerHTML=db.incidents.length?db.incidents.map(x=>`<div class="item"><b>${esc(x.type)}</b> <span class="tag">${esc(x.priority)}</span><div class="muted">${x.date} · ${esc(x.resp)} · ${esc(x.status)}</div><div>${esc(x.desc)}</div>${x.action?`<div class="muted">Acción: ${esc(x.action)}</div>`:""}<div class="actions"><button onclick="editIncident('${x.id}')">✏️ Editar</button><button onclick="cycleIncident('${x.id}')">Cambiar estado</button><button class="danger" onclick="deleteIncident('${x.id}')">🗑️ Eliminar</button></div></div>`).join(""):"<div class='empty'>Sin incidencias.</div>"}
+function editIncident(id){let x=db.incidents.find(i=>i.id===id);if(!x)return;openModal(`<div class="modalhead"><h2>Editar incidencia</h2><button class="close" onclick="closeModal()">✕</button></div><label>Fecha</label><input id="eiDate" type="date" value="${x.date}"><label>Responsable</label><input id="eiResp" value="${esc(x.resp)}"><div class="meta"><div><label>Tipo</label><select id="eiType">${["Operación","Inventario","Equipo","Caja / ventas","Limpieza","Personal","Seguridad","Otro"].map(v=>`<option ${v===x.type?"selected":""}>${v}</option>`).join("")}</select></div><div><label>Prioridad</label><select id="eiPriority">${["Baja","Media","Alta","Crítica"].map(v=>`<option ${v===x.priority?"selected":""}>${v}</option>`).join("")}</select></div></div><label>Estado</label><select id="eiStatus">${["Abierta","En seguimiento","Resuelta"].map(v=>`<option ${v===x.status?"selected":""}>${v}</option>`).join("")}</select><label>Descripción</label><textarea id="eiDesc">${esc(x.desc)}</textarea><label>Acción tomada</label><textarea id="eiAction">${esc(x.action||"")}</textarea><div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveIncidentEdit('${id}')">Guardar</button></div>`)}
+function saveIncidentEdit(id){let x=db.incidents.find(i=>i.id===id);if(!x)return;x.date=document.getElementById("eiDate").value;x.resp=document.getElementById("eiResp").value;x.type=document.getElementById("eiType").value;x.priority=document.getElementById("eiPriority").value;x.status=document.getElementById("eiStatus").value;x.desc=document.getElementById("eiDesc").value;x.action=document.getElementById("eiAction").value;closeModal();save()}
+function cycleIncident(id){let x=db.incidents.find(i=>i.id===id);if(!x)return;x.status=x.status==="Abierta"?"En seguimiento":x.status==="En seguimiento"?"Resuelta":"Abierta";save()}
+function deleteIncident(id){db.incidents=db.incidents.filter(x=>x.id!==id);save()}
+function renderDashboard(){let total=db.sessions.reduce((a,x)=>a+x.total,0),done=db.sessions.reduce((a,x)=>a+x.done,0),p=total?Math.round(done/total*100):0;document.getElementById("dashPct").textContent=p+"%";document.getElementById("dashDone").textContent=done;document.getElementById("dashPending").textContent=total-done;document.getElementById("dashInc").textContent=db.incidents.filter(x=>x.status!=="Resuelta").length;document.getElementById("history").innerHTML=db.sessions.length?db.sessions.slice(0,15).map(x=>`<div class="item"><b>${x.mode==="apertura"?"☀️ Apertura":"🌙 Cierre"}</b> · ${x.date}<br><span class="muted">${esc(x.resp)} · ${x.done}/${x.total}</span></div>`).join(""):"<div class='empty'>Sin registros.</div>";const pend=db.pending.filter(x=>x.status==="Pendiente");document.getElementById("dashPendingList").innerHTML=pend.length?pend.slice(0,10).map(x=>`<div class="item">⚠️ ${esc(x.text)}<br><span class="muted">${x.date}</span></div>`).join(""):"<div class='empty'>Sin pendientes.</div>";document.getElementById("dashIncList").innerHTML=db.incidents.length?db.incidents.slice(0,10).map(x=>`<div class="item"><b>${esc(x.type)}</b> · ${esc(x.priority)}<br>${esc(x.desc)}<br><span class="muted">${x.date} · ${x.status}</span></div>`).join(""):"<div class='empty'>Sin incidencias.</div>"}
+function renderConfig(){const box=document.getElementById("configList");box.innerHTML="";for(const mode of ["apertura","cierre"]){let s=document.createElement("div");s.className="section";s.innerHTML=`<h3>${mode==="apertura"?"☀️ Apertura":"🌙 Cierre"}`;db.tasks.filter(t=>t.mode===mode).forEach(t=>{let row=document.createElement("div");row.className="task";row.innerHTML=`<input type="checkbox" ${t.active&&!t.archived?"checked":""}><div style="flex:1"><div class="task-title">${esc(t.title)}</div><div class="muted">${esc(t.section)} · ${esc(t.type)}${t.base?" · original":""}</div></div><button onclick="editTask('${t.id}')">✏️</button><button class="danger" onclick="archiveTask('${t.id}')">🗑️</button>`;row.querySelector("input").onchange=e=>{t.active=e.target.checked;if(t.archived)t.archived=false;save()};s.appendChild(row)});box.appendChild(s)}}
+function openTaskModal(task=null){let t=task||{};openModal(`<div class="modalhead"><div><h2>${task?"Editar":"Agregar"} acción</h2><div class="muted">La acción se integra directamente al checklist.</div></div><button class="close" onclick="closeModal()">✕</button></div><label>Nombre</label><input id="taskName" value="${esc(t.title||"")}"><div class="meta"><div><label>Checklist</label><select id="taskMode"><option value="apertura" ${t.mode==="apertura"?"selected":""}>Apertura</option><option value="cierre" ${t.mode==="cierre"?"selected":""}>Cierre</option></select></div><div><label>Categoría</label><input id="taskSection" value="${esc(t.section||"General")}"></div></div><label>Tipo</label><select id="taskType"><option>Confirmación</option><option>Verificación</option><option>Validación</option><option>Cantidad / inventario</option><option>Merma</option><option>Pendientes</option><option>Condicional</option></select><div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveTask('${task?.id||""}')">Guardar</button></div>`);if(task)document.getElementById("taskType").value=t.type}
+function saveTask(id){let title=document.getElementById("taskName").value.trim();if(!title){alert("Escribe un nombre.");return}if(id){let t=db.tasks.find(x=>x.id===id);if(t){t.title=title;t.mode=document.getElementById("taskMode").value;t.section=document.getElementById("taskSection").value||"General";t.type=document.getElementById("taskType").value}}else db.tasks.push({id:crypto.randomUUID(),mode:document.getElementById("taskMode").value,section:document.getElementById("taskSection").value||"General",title,type:document.getElementById("taskType").value,active:true,archived:false,base:false});closeModal();save()}
+function editTask(id){let t=db.tasks.find(x=>x.id===id);if(t)openTaskModal(t)}
+function archiveTask(id){let t=db.tasks.find(x=>x.id===id);if(!t)return;t.archived=true;t.active=false;save()}
+function showArchived(){let a=db.tasks.filter(t=>t.archived);openModal(`<div class="modalhead"><h2>📦 Acciones archivadas</h2><button class="close" onclick="closeModal()">✕</button></div>${a.length?a.map(t=>`<div class="item"><b>${esc(t.title)}</b><br><span class="muted">${t.mode} · ${esc(t.section)}</span><div class="actions"><button class="ok" onclick="restoreTask('${t.id}')">↩ Restaurar</button></div></div>`).join(""):"<div class='empty'>No hay acciones archivadas.</div>"}`)}
+function restoreTask(id){let t=db.tasks.find(x=>x.id===id);if(t){t.archived=false;t.active=true;save();showArchived()}}
+function factoryResetTasks(){if(confirm("Restaurar la lista inicial y eliminar las acciones personalizadas?")){db.tasks=makeInitialTasks();db.active={apertura:{},cierre:{}};save()}}
+function openModal(content){document.getElementById("modalBox").innerHTML=content;document.getElementById("modal").classList.remove("hidden")}
+function closeModal(){document.getElementById("modal").classList.add("hidden")}
+
+function gasDurationDays(startDate){
+ const start=new Date(startDate+"T00:00:00"), now=new Date();
+ const diff=Math.max(0,now-start);
+ return Math.floor(diff/86400000);
+}
+
+function gasDurationDays(startDate,endDate=null){
+ const start=new Date(startDate+"T00:00:00"), end=new Date((endDate||today())+"T00:00:00");
+ return Math.max(0,Math.floor((end-start)/86400000));
+}
+function renderGas(){
+ const active=db.controls.gas.find(x=>x.active),box=document.getElementById("gasActive");
+ if(active){
+   const days=gasDurationDays(active.fechaInicio);
+   box.innerHTML=`<div class="notice"><b>🔥 Tanque activo</b><br>Tamaño: <b>${esc(active.tamano)}</b><br>Colocado: <b>${esc(active.fechaInicio)}</b><br><div style="font-size:38px;font-weight:900;margin:8px 0">${days} ${days===1?"día":"días"}</div>Responsable: ${esc(active.responsable||"Sin responsable")}<div class="actions"><button class="danger" onclick="finishGasTank('${active.id}')">✓ Marcar como terminado</button><button onclick="editGas('${active.id}')">✏️ Editar</button><button class="danger" onclick="deleteGas('${active.id}')">🗑️ Eliminar</button></div></div>`;
+ }else box.innerHTML="<div class='empty'>No hay un tanque activo registrado.</div>";
+ const hist=db.controls.gas.filter(x=>!x.active);
+ document.getElementById("gasHistory").innerHTML=hist.length?hist.slice(0,20).map(x=>`<div class="item"><b>${esc(x.tamano)}</b> · ${esc(x.fechaInicio)} → ${esc(x.fechaFin)}<br><span class="muted">Duración: ${x.duracion} ${x.duracion===1?"día":"días"} · ${esc(x.responsable||"Sin responsable")}</span><div class="actions"><button onclick="editGas('${x.id}')">✏️ Editar</button><button class="danger" onclick="deleteGas('${x.id}')">🗑️ Eliminar</button></div></div>`).join(""):"<div class='empty'>Aún no hay tanques terminados.</div>";
+ const avg=hist.length?Math.round(hist.reduce((a,x)=>a+Number(x.duracion||0),0)/hist.length*10)/10:0;
+ document.getElementById("gasSummary").innerHTML=`<div class="num">${active?gasDurationDays(active.fechaInicio):"—"}</div><div class="muted">días del tanque activo</div><div style="margin-top:14px"><b>${hist.length}</b><div class="muted">tanques terminados</div></div><div style="margin-top:14px"><b>${avg||"—"}</b><div class="muted">promedio de duración</div></div>`;
+}
+function startGasTank(){
+ if(db.controls.gas.some(x=>x.active)){alert("Ya hay un tanque activo. Primero marca el actual como terminado.");return}
+ openGasForm();
+}
+function openGasForm(existing=null){
+ const x=existing||{};
+ openModal(`<div class="modalhead"><div><h2>🔥 ${existing?"Editar tanque":"Colocar tanque nuevo"}</h2><div class="muted">${existing?"Modifica los datos y guarda los cambios.":"Al guardar comienza el contador."}</div></div><button class="close" onclick="closeModal()">✕</button></div>
+ <label>Fecha de colocación</label><input id="gasStartDate" type="date" value="${x.fechaInicio||today()}">
+ <label>Tamaño del tanque</label><select id="gasSize"><option ${x.tamano==="20 kg"?"selected":""}>20 kg</option><option ${x.tamano==="30 kg"?"selected":""}>30 kg</option><option ${x.tamano==="45 kg"?"selected":""}>45 kg</option></select>
+ <label>Responsable</label><input id="gasResp" value="${esc(x.responsable||"")}">
+ <label>Observación</label><textarea id="gasObs">${esc(x.observacion||"")}</textarea>
+ ${existing&&!existing.active?`<label>Fecha de término</label><input id="gasEndDateEdit" type="date" value="${x.fechaFin||""}">`:""}
+ <div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveGasEdit('${existing?.id||""}')">Guardar</button></div>`);
+}
+function saveGasEdit(id){
+ const fecha=document.getElementById("gasStartDate").value;if(!fecha){alert("Selecciona la fecha.");return}
+ if(id){
+  const x=db.controls.gas.find(x=>x.id===id);if(!x)return;
+  x.fechaInicio=fecha;x.tamano=document.getElementById("gasSize").value;x.responsable=document.getElementById("gasResp").value;x.observacion=document.getElementById("gasObs").value;
+  if(!x.active){const end=document.getElementById("gasEndDateEdit").value;if(!end){alert("Selecciona la fecha de término.");return}const a=new Date(fecha+"T00:00:00"),b=new Date(end+"T00:00:00");if(b<a){alert("La fecha de término no puede ser anterior.");return}x.fechaFin=end;x.duracion=Math.floor((b-a)/86400000)}
+ }else db.controls.gas.unshift({id:crypto.randomUUID(),active:true,fechaInicio:fecha,tamano:document.getElementById("gasSize").value,responsable:document.getElementById("gasResp").value,observacion:document.getElementById("gasObs").value});
+ closeModal();save();
+}
+function editGas(id){const x=db.controls.gas.find(x=>x.id===id);if(x)openGasForm(x)}
+function deleteGas(id){if(!confirm("¿Eliminar este registro de gas?"))return;db.controls.gas=db.controls.gas.filter(x=>x.id!==id);save()}
+function finishGasTank(id){
+ const x=db.controls.gas.find(x=>x.id===id);if(!x)return;
+ openModal(`<div class="modalhead"><div><h2>✓ Terminar tanque</h2><div class="muted">Selecciona la fecha de término.</div></div><button class="close" onclick="closeModal()">✕</button></div><label>Fecha de término</label><input id="gasEndDate" type="date" value="${today()}"><div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="confirmFinishGas('${id}')">Registrar término</button></div>`);
+}
+function confirmFinishGas(id){
+ const x=db.controls.gas.find(x=>x.id===id);if(!x)return;
+ const end=document.getElementById("gasEndDate").value;if(!end){alert("Selecciona una fecha.");return}
+ const start=new Date(x.fechaInicio+"T00:00:00"),finish=new Date(end+"T00:00:00");if(finish<start){alert("La fecha de término no puede ser anterior a la colocación.");return}
+ x.fechaFin=end;x.duracion=Math.floor((finish-start)/86400000);x.active=false;closeModal();save();
+}
+function openAlitasForm(existing=null){
+ const x=existing||{};
+ openModal(`<div class="modalhead"><div><h2>🍗 ${existing?"Editar llegada":"Registrar llegada de alitas"}</h2><div class="muted">Siempre en kilogramos.</div></div><button class="close" onclick="closeModal()">✕</button></div>
+ <label>Fecha de llegada</label><input id="aliDate" type="date" value="${x.fecha||today()}">
+ <label>Cantidad recibida (kg)</label><input id="aliQty" type="number" min="0" step="0.01" value="${x.cantidad??""}">
+ <label>Proveedor</label><input id="aliProvider" value="${esc(x.proveedor||"")}">
+ <label>Observación</label><textarea id="aliObs">${esc(x.observacion||"")}</textarea>
+ <div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveAlitas('${existing?.id||""}')">Guardar</button></div>`);
+}
+function saveAlitas(id){
+ const fecha=document.getElementById("aliDate").value,qty=document.getElementById("aliQty").value;if(!fecha||!qty){alert("Indica fecha y cantidad.");return}
+ const obj={fecha,cantidad:Number(qty),proveedor:document.getElementById("aliProvider").value,observacion:document.getElementById("aliObs").value};
+ if(id)Object.assign(db.controls.alitas.find(x=>x.id===id),obj);else db.controls.alitas.unshift({id:crypto.randomUUID(),...obj});
+ closeModal();save();
+}
+function editAlitas(id){const x=db.controls.alitas.find(x=>x.id===id);if(x)openAlitasForm(x)}
+function deleteAlitas(id){if(!confirm("¿Eliminar esta llegada de alitas?"))return;db.controls.alitas=db.controls.alitas.filter(x=>x.id!==id);save()}
+function openPapelForm(existing=null){
+ const x=existing||{};
+ openModal(`<div class="modalhead"><div><h2>🧻 ${existing?"Editar cambio":"Registrar cambio de papel"}</h2><div class="muted">Baño de clientes.</div></div><button class="close" onclick="closeModal()">✕</button></div>
+ <label>Fecha del cambio</label><input id="papDate" type="date" value="${x.fecha||today()}">
+ <label>Baño</label><select id="papBathroom"><option ${x.banio==="Hombres"?"selected":""}>Hombres</option><option ${x.banio==="Mujeres"?"selected":""}>Mujeres</option></select>
+ <label>Cantidad de rollos colocados</label><input id="papQty" type="number" min="0" step="1" value="${x.cantidad??""}">
+ <label>Responsable</label><input id="papResp" value="${esc(x.responsable||"")}">
+ <label>Observación</label><textarea id="papObs">${esc(x.observacion||"")}</textarea>
+ <div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="savePapel('${existing?.id||""}')">Guardar</button></div>`);
+}
+function savePapel(id){
+ const fecha=document.getElementById("papDate").value,qty=document.getElementById("papQty").value;if(!fecha||!qty){alert("Indica fecha y cantidad.");return}
+ const obj={fecha,banio:document.getElementById("papBathroom").value,cantidad:Number(qty),responsable:document.getElementById("papResp").value,observacion:document.getElementById("papObs").value};
+ if(id)Object.assign(db.controls.papel.find(x=>x.id===id),obj);else db.controls.papel.unshift({id:crypto.randomUUID(),...obj});
+ closeModal();save();
+}
+function editPapel(id){const x=db.controls.papel.find(x=>x.id===id);if(x)openPapelForm(x)}
+function deletePapel(id){if(!confirm("¿Eliminar este cambio de papel?"))return;db.controls.papel=db.controls.papel.filter(x=>x.id!==id);save()}
+function renderAlitas(){
+ const a=db.controls.alitas,total=a.reduce((s,x)=>s+Number(x.cantidad||0),0);
+ document.getElementById("alitasSummary").innerHTML=`<div class="num">${total.toFixed(2)} kg</div><div class="muted">recibidos en todos los registros</div><div style="margin-top:14px"><b>${a.length}</b><div class="muted">llegadas registradas</div></div>`;
+ document.getElementById("alitasHistory").innerHTML=a.length?a.slice(0,20).map(x=>`<div class="item"><b>${esc(x.fecha)}</b> · <b>${x.cantidad} kg</b><br><span class="muted">${esc(x.proveedor||"Proveedor no indicado")}${x.observacion?" · "+esc(x.observacion):""}</span><div class="actions"><button onclick="editAlitas('${x.id}')">✏️ Editar</button><button class="danger" onclick="deleteAlitas('${x.id}')">🗑️ Eliminar</button></div></div>`).join(""):"<div class='empty'>Sin llegadas registradas.</div>";
+}
+function renderPapel(){
+ const a=db.controls.papel,total=a.reduce((s,x)=>s+Number(x.cantidad||0),0),avg=a.length?Math.round(total/a.length*10)/10:0;
+ const men=a.filter(x=>x.banio==="Hombres"),muj=a.filter(x=>x.banio==="Mujeres");
+ document.getElementById("papelSummary").innerHTML=`<div class="num">${a.length}</div><div class="muted">cambios registrados</div><div style="margin-top:14px"><b>${men.reduce((s,x)=>s+Number(x.cantidad||0),0)} rollos</b><div class="muted">Baño de hombres</div></div><div style="margin-top:10px"><b>${muj.reduce((s,x)=>s+Number(x.cantidad||0),0)} rollos</b><div class="muted">Baño de mujeres</div></div>`;
+ document.getElementById("papelHistory").innerHTML=a.length?a.slice(0,20).map(x=>`<div class="item"><b>${esc(x.fecha)}</b> · <b>${x.cantidad} rollos</b> · <b>Baño de ${esc((x.banio||"").toLowerCase())}</b><br><span class="muted">${esc(x.responsable||"Sin responsable")}${x.observacion?" · "+esc(x.observacion):""}</span><div class="actions"><button onclick="editPapel('${x.id}')">✏️ Editar</button><button class="danger" onclick="deletePapel('${x.id}')">🗑️ Eliminar</button></div></div>`).join(""):"<div class='empty'>Sin cambios registrados.</div>";
+}
+function renderAll(){renderChecklist("apertura");renderChecklist("cierre");renderPending();renderIncidents();renderDashboard();renderGas();renderAlitas();renderPapel();renderConfig()}
+document.getElementById("apDate").value=today();document.getElementById("ciDate").value=today();document.getElementById("incDate").value=today();renderAll();setInterval(()=>{if(!document.getElementById("gas").classList.contains("hidden"))renderGas()},60000);
+document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+</script>
+</body></html>
