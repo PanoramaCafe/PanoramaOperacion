@@ -61,14 +61,32 @@ function resetApp(){
 </nav>
 
 <section id="dashboard" class="view">
-<div class="card"><h2>Dashboard</h2><div class="stats">
-<div class="stat"><div class="num" id="dashPct">0%</div><div class="muted">Cumplimiento</div></div>
-<div class="stat"><div class="num" id="dashDone">0</div><div class="muted">Realizadas</div></div>
-<div class="stat"><div class="num" id="dashPending">0</div><div class="muted">Pendientes</div></div>
-<div class="stat"><div class="num" id="dashInc">0</div><div class="muted">Incidencias abiertas</div></div>
-</div></div>
-<div class="grid" style="margin-top:14px"><div class="card"><h3>Actividad reciente</h3><div id="history"></div></div><div class="card"><h3>Pendientes activos</h3><div id="dashPendingList"></div></div></div>
-<div class="card" style="margin-top:14px"><h3>Últimas incidencias</h3><div id="dashIncList"></div></div>
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <div><h2 style="margin-bottom:4px">Dashboard</h2><div class="muted" id="dashFilterLabel">Cumplimiento del día</div></div>
+    <div class="meta" style="margin:0">
+      <div><label>Mostrar</label><select id="dashFilterMode" onchange="updateDashboardFilter()">
+        <option value="day">Un día</option>
+        <option value="range">Periodo</option>
+      </select></div>
+      <div id="dashDayWrap"><label>Fecha</label><input id="dashDay" type="date" onchange="renderDashboard()"></div>
+      <div id="dashStartWrap" class="hidden"><label>Desde</label><input id="dashStart" type="date" onchange="renderDashboard()"></div>
+      <div id="dashEndWrap" class="hidden"><label>Hasta</label><input id="dashEnd" type="date" onchange="renderDashboard()"></div>
+    </div>
+  </div>
+  <div class="stats" style="margin-top:14px">
+    <div class="stat"><div class="num" id="dashPct">0%</div><div class="muted">Cumplimiento</div></div>
+    <div class="stat"><div class="num" id="dashDone">0</div><div class="muted">Realizadas</div></div>
+    <div class="stat"><div class="num" id="dashPending">0</div><div class="muted">Pendientes</div></div>
+    <div class="stat"><div class="num" id="dashInc">0</div><div class="muted">Incidencias abiertas</div></div>
+  </div>
+  <div class="muted" id="dashSessionSummary" style="margin-top:10px"></div>
+</div>
+<div class="grid" style="margin-top:14px">
+  <div class="card"><h3>Actividad del periodo</h3><div id="history"></div></div>
+  <div class="card"><h3>Pendientes activos</h3><div id="dashPendingList"></div></div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Incidencias del periodo</h3><div id="dashIncList"></div></div>
 </section>
 
 <section id="apertura" class="view hidden">
@@ -300,7 +318,66 @@ function editIncident(id){let x=db.incidents.find(i=>i.id===id);if(!x)return;ope
 function saveIncidentEdit(id){let x=db.incidents.find(i=>i.id===id);if(!x)return;x.date=document.getElementById("eiDate").value;x.resp=document.getElementById("eiResp").value;x.type=document.getElementById("eiType").value;x.priority=document.getElementById("eiPriority").value;x.status=document.getElementById("eiStatus").value;x.desc=document.getElementById("eiDesc").value;x.action=document.getElementById("eiAction").value;closeModal();save()}
 function cycleIncident(id){let x=db.incidents.find(i=>i.id===id);if(!x)return;x.status=x.status==="Abierta"?"En seguimiento":x.status==="En seguimiento"?"Resuelta":"Abierta";save()}
 function deleteIncident(id){db.incidents=db.incidents.filter(x=>x.id!==id);save()}
-function renderDashboard(){let total=db.sessions.reduce((a,x)=>a+x.total,0),done=db.sessions.reduce((a,x)=>a+x.done,0),p=total?Math.round(done/total*100):0;document.getElementById("dashPct").textContent=p+"%";document.getElementById("dashDone").textContent=done;document.getElementById("dashPending").textContent=total-done;document.getElementById("dashInc").textContent=db.incidents.filter(x=>x.status!=="Resuelta").length;document.getElementById("history").innerHTML=db.sessions.length?db.sessions.slice(0,15).map(x=>`<div class="item"><b>${x.mode==="apertura"?"☀️ Apertura":"🌙 Cierre"}</b> · ${x.date}<br><span class="muted">${esc(x.resp)} · ${x.done}/${x.total}</span></div>`).join(""):"<div class='empty'>Sin registros.</div>";const pend=db.pending.filter(x=>x.status==="Pendiente");document.getElementById("dashPendingList").innerHTML=pend.length?pend.slice(0,10).map(x=>`<div class="item">⚠️ ${esc(x.text)}<br><span class="muted">${x.date}</span></div>`).join(""):"<div class='empty'>Sin pendientes.</div>";document.getElementById("dashIncList").innerHTML=db.incidents.length?db.incidents.slice(0,10).map(x=>`<div class="item"><b>${esc(x.type)}</b> · ${esc(x.priority)}<br>${esc(x.desc)}<br><span class="muted">${x.date} · ${x.status}</span></div>`).join(""):"<div class='empty'>Sin incidencias.</div>"}
+function dashDateInRange(date,start,end){return date>=start&&date<=end}
+function updateDashboardFilter(){
+ const mode=document.getElementById("dashFilterMode").value;
+ document.getElementById("dashDayWrap").classList.toggle("hidden",mode!=="day");
+ document.getElementById("dashStartWrap").classList.toggle("hidden",mode!=="range");
+ document.getElementById("dashEndWrap").classList.toggle("hidden",mode!=="range");
+ if(mode==="range"){
+   const day=document.getElementById("dashDay").value||today();
+   if(!document.getElementById("dashStart").value)document.getElementById("dashStart").value=day;
+   if(!document.getElementById("dashEnd").value)document.getElementById("dashEnd").value=day;
+ }
+ renderDashboard();
+}
+function getDashboardRange(){
+ const mode=document.getElementById("dashFilterMode").value;
+ if(mode==="day"){
+   const d=document.getElementById("dashDay").value||today();
+   return {start:d,end:d,label:`${formatDate(d)}`};
+ }
+ let start=document.getElementById("dashStart").value||today();
+ let end=document.getElementById("dashEnd").value||start;
+ if(end<start){const tmp=start;start=end;end=tmp;}
+ return {start,end,label:`${formatDate(start)} — ${formatDate(end)}`};
+}
+function formatDate(d){
+ if(!d)return "Sin fecha";
+ const [y,m,day]=d.split("-");
+ return `${day}/${m}/${y}`;
+}
+function renderDashboard(){
+ const r=getDashboardRange();
+ const sessions=db.sessions.filter(x=>dashDateInRange(x.date,r.start,r.end));
+ const total=sessions.reduce((a,x)=>a+Number(x.total||0),0);
+ const done=sessions.reduce((a,x)=>a+Number(x.done||0),0);
+ const p=total?Math.round(done/total*100):0;
+ const incFiltered=db.incidents.filter(x=>dashDateInRange(x.date,r.start,r.end));
+ const pendingCount=Math.max(0,total-done);
+
+ document.getElementById("dashPct").textContent=p+"%";
+ document.getElementById("dashDone").textContent=done;
+ document.getElementById("dashPending").textContent=pendingCount;
+ document.getElementById("dashInc").textContent=incFiltered.filter(x=>x.status!=="Resuelta").length;
+ document.getElementById("dashFilterLabel").textContent=document.getElementById("dashFilterMode").value==="day"?"Cumplimiento del día":"Cumplimiento del periodo";
+ document.getElementById("dashSessionSummary").textContent=sessions.length
+   ? `${sessions.length} registro${sessions.length===1?"":"s"} de checklist · ${r.label}`
+   : `Sin registros de checklist · ${r.label}`;
+
+ document.getElementById("history").innerHTML=sessions.length
+   ? sessions.slice().sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).map(x=>`<div class="item"><b>${x.mode==="apertura"?"☀️ Apertura":"🌙 Cierre"}</b> · ${formatDate(x.date)}<br><span class="muted">${esc(x.resp)} · ${x.done}/${x.total} (${x.total?Math.round(x.done/x.total*100):0}%)</span></div>`).join("")
+   : "<div class='empty'>Sin registros en el periodo seleccionado.</div>";
+
+ const pend=db.pending.filter(x=>x.status==="Pendiente");
+ document.getElementById("dashPendingList").innerHTML=pend.length
+   ? pend.slice(0,10).map(x=>`<div class="item">⚠️ ${esc(x.text)}<br><span class="muted">${x.date}</span></div>`).join("")
+   : "<div class='empty'>Sin pendientes.</div>";
+
+ document.getElementById("dashIncList").innerHTML=incFiltered.length
+   ? incFiltered.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15).map(x=>`<div class="item"><b>${esc(x.type)}</b> · ${esc(x.priority)}<br>${esc(x.desc)}<br><span class="muted">${formatDate(x.date)} · ${x.status}</span></div>`).join("")
+   : "<div class='empty'>Sin incidencias en el periodo seleccionado.</div>";
+}
 function renderConfig(){const box=document.getElementById("configList");box.innerHTML="";for(const mode of ["apertura","cierre"]){let s=document.createElement("div");s.className="section";s.innerHTML=`<h3>${mode==="apertura"?"☀️ Apertura":"🌙 Cierre"}`;db.tasks.filter(t=>t.mode===mode).forEach(t=>{let row=document.createElement("div");row.className="task";row.innerHTML=`<input type="checkbox" ${t.active&&!t.archived?"checked":""}><div style="flex:1"><div class="task-title">${esc(t.title)}</div><div class="muted">${esc(t.section)} · ${esc(t.type)}${t.base?" · original":""}</div></div><button onclick="editTask('${t.id}')">✏️</button><button class="danger" onclick="archiveTask('${t.id}')">🗑️</button>`;row.querySelector("input").onchange=e=>{t.active=e.target.checked;if(t.archived)t.archived=false;save()};s.appendChild(row)});box.appendChild(s)}}
 function openTaskModal(task=null){let t=task||{};openModal(`<div class="modalhead"><div><h2>${task?"Editar":"Agregar"} acción</h2><div class="muted">La acción se integra directamente al checklist.</div></div><button class="close" onclick="closeModal()">✕</button></div><label>Nombre</label><input id="taskName" value="${esc(t.title||"")}"><div class="meta"><div><label>Checklist</label><select id="taskMode"><option value="apertura" ${t.mode==="apertura"?"selected":""}>Apertura</option><option value="cierre" ${t.mode==="cierre"?"selected":""}>Cierre</option></select></div><div><label>Categoría</label><input id="taskSection" value="${esc(t.section||"General")}"></div></div><label>Tipo</label><select id="taskType"><option>Confirmación</option><option>Verificación</option><option>Validación</option><option>Cantidad / inventario</option><option>Merma</option><option>Pendientes</option><option>Condicional</option></select><div class="actions"><button onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveTask('${task?.id||""}')">Guardar</button></div>`);if(task)document.getElementById("taskType").value=t.type}
 function saveTask(id){let title=document.getElementById("taskName").value.trim();if(!title){alert("Escribe un nombre.");return}if(id){let t=db.tasks.find(x=>x.id===id);if(t){t.title=title;t.mode=document.getElementById("taskMode").value;t.section=document.getElementById("taskSection").value||"General";t.type=document.getElementById("taskType").value}}else db.tasks.push({id:crypto.randomUUID(),mode:document.getElementById("taskMode").value,section:document.getElementById("taskSection").value||"General",title,type:document.getElementById("taskType").value,active:true,archived:false,base:false});closeModal();save()}
@@ -415,7 +492,7 @@ function renderPapel(){
  document.getElementById("papelHistory").innerHTML=a.length?a.slice(0,20).map(x=>`<div class="item"><b>${esc(x.fecha)}</b> · <b>${x.cantidad} rollos</b> · <b>Baño de ${esc((x.banio||"").toLowerCase())}</b><br><span class="muted">${esc(x.responsable||"Sin responsable")}${x.observacion?" · "+esc(x.observacion):""}</span><div class="actions"><button onclick="editPapel('${x.id}')">✏️ Editar</button><button class="danger" onclick="deletePapel('${x.id}')">🗑️ Eliminar</button></div></div>`).join(""):"<div class='empty'>Sin cambios registrados.</div>";
 }
 function renderAll(){renderChecklist("apertura");renderChecklist("cierre");renderPending();renderIncidents();renderDashboard();renderGas();renderAlitas();renderPapel();renderConfig()}
-document.getElementById("apDate").value=today();document.getElementById("ciDate").value=today();document.getElementById("incDate").value=today();loadChecklistState("apertura");loadChecklistState("cierre");renderAll();setInterval(()=>{if(!document.getElementById("gas").classList.contains("hidden"))renderGas()},60000);
+document.getElementById("apDate").value=today();document.getElementById("ciDate").value=today();document.getElementById("incDate").value=today();document.getElementById("dashDay").value=today();document.getElementById("dashStart").value=today();document.getElementById("dashEnd").value=today();updateDashboardFilter();loadChecklistState("apertura");loadChecklistState("cierre");renderAll();setInterval(()=>{if(!document.getElementById("gas").classList.contains("hidden"))renderGas()},60000);
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 </script>
