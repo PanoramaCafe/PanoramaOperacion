@@ -22,6 +22,28 @@
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
 }
+function resetApp(){
+  const ok=confirm("¿Restablecer Panorama Café? Se eliminarán TODOS los datos locales de esta aplicación y no se podrán recuperar.");
+  if(!ok)return;
+  try{
+    localStorage.removeItem(STORE);
+    // Remove legacy keys used by previous prototypes, without touching unrelated sites.
+    ["panorama_cafe_v8_clean_20260817","panorama_cafe_v9_20260817","panorama_cafe_v10_20260817"].forEach(k=>localStorage.removeItem(k));
+    db=load();
+    ensureDrafts();
+    db.active={apertura:{},cierre:{}};
+    db.details={};
+    document.getElementById("apDate").value=today();
+    document.getElementById("ciDate").value=today();
+    renderAll();
+    loadChecklistState("apertura");
+    loadChecklistState("cierre");
+    alert("Aplicación restablecida correctamente. Todos los datos locales fueron eliminados.");
+  }catch(e){
+    alert("No fue posible restablecer la aplicación.");
+    console.error(e);
+  }
+}
 </script></head>
 <body>
 <div class="app">

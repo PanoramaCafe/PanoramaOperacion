@@ -1,7 +1,5 @@
-PANORAMA CAFÉ V10 — PRUEBA
-Corrección de checklists por fecha:
-- Un solo registro por tipo (Apertura/Cierre) y fecha.
-- Cambiar de fecha carga el estado correspondiente.
-- Cambiar 18→19 ya no arrastra casillas.
-- Volver a registrar la misma fecha actualiza el registro existente.
-- Los borradores por día se conservan localmente.
+PANORAMA CAFÉ V11 — LOGO ROJO/LADRILLO
+- Iconos PWA generados directamente del logo proporcionado.
+- Manifest actualizado con identidad roja/ladrillo.
+- Corrección del botón Restablecer aplicación.
+- Mantiene la corrección de checklist por fecha de V10.
